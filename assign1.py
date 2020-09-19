@@ -48,25 +48,30 @@ def gen_negation_range(neg_match):
 
 def add_note(symp_dict,symp_matches,text,negation_ranges): 
     tags = list() 
+    negs = list()
     for e in symp_matches:   
         term = e.groups(1)[0] 
         moded = False  
+        tags.append(term)
         for k in negation_ranges: 
             if term in k: 
-                tags.append( f"{symp_dict}-neg")
+                negs.append("1")
                 moded = True 
+                break 
         if not moded: 
-            output_str = output_str + '$$$' + symp_dict[e.group(0)] +'$$$'
-    return output_str
+            negs.append("0")
+    return ("$$$".join(tags),"$$$".join(negs))
 def annotate_individual(sample:pd.Series,symp_dict,negations):
     ID = sample['ID']
     txt = sample['TEXT']
     o1 = search_symptoms(symp_dict,txt)
     o2 =search_negation(negations,txt)
     neg_range = gen_negation_range(o2)
-    out_str= add_note(symp_dict,o1,txt,neg_range)
-    print(out_str)
-
+    (cuis,negationFlag)= add_note(symp_dict,o1,txt,neg_range)
+    print("CUIS")
+    print(cuis)
+    print('negations')
+    print(negationFlag)
 def build_symps():
     lexicon :pd.DataFrame= pd.read_csv('COVID-Twitter-Symptom-Lexicon.txt',sep='\t',names=['Gen','code','desc'])
     symp_dict = {} 
