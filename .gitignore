@@ -1,4 +1,8 @@
 *xlsx 
 *.txt 
+*.ipynb
+.DS_Store
 .vscode 
-__py_cache 
+__py_cache__/
+IAA_Calculator.py
+__pycache__/generate_lexi.cpython-38.pyc

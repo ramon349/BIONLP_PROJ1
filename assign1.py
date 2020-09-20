@@ -4,14 +4,15 @@ import os
 import glob 
 import sys 
 import re
+from generate_lexi import load_annotations
 
-
-
+def pre_process_text(s:str): 
+    return " ".join(s.lower().split('\n') )
 def search_symptoms(symp_dict,sentence):
     found = False 
     matches = list() 
     for k in symp_dict: 
-        searcher = list(re.finditer(f'({k})',sentence)) 
+        searcher = list(re.finditer(f'(\b|\W)({k})(\b|\W)',sentence)) 
         if searcher: 
             matches.extend(searcher)  
             found = True 
@@ -46,17 +47,13 @@ def gen_negation_range(neg_match):
             out.append(groups)
     return out 
 
-def add_note(symp_dict,symp_matches,text,negation_ranges,code_2_gen): 
-    terms = list() 
+def add_note(symp_dict,symp_matches,text,negation_ranges): 
     negs = list()
     cuis = list() 
-    gen_symps = list()
     for e in symp_matches: 
-        term = e.groups(1)[0] 
+        term:str= e.groups()[1]
         moded = False  
-        terms.append(term)
         cuis.append(symp_dict[term])
-        gen_symps.append(code_2_gen[symp_dict[term]])
         for k in negation_ranges: 
             if term in k: 
                 negs.append("1")
@@ -64,19 +61,17 @@ def add_note(symp_dict,symp_matches,text,negation_ranges,code_2_gen):
                 break 
         if not moded: 
             negs.append("0")
-    return ("$$$".join(terms),"$$$".join(gen_symps),"$$$".join(cuis), "$$$".join(negs))
-def annotate_individual(sample:pd.Series,symp_dict,negations,code_2_gen):
+    return ("$$$".join(cuis), "$$$".join(negs))
+def annotate_individual(sample:pd.Series,symp_dict,negations):
     ID = sample['ID']
-    txt = sample['TEXT']
+    txt = pre_process_text(sample['TEXT'])
     o1 = search_symptoms(symp_dict,txt)
     o2 =search_negation(negations,txt)
     neg_range = gen_negation_range(o2)
-    (matched,generic, cuis, negations)= add_note(symp_dict,o1,txt,neg_range,code_2_gen)
-    sample['Symptom Expressions'] = matched 
-    sample['Standard Symptom'] = generic 
-    sample['Symptom CUIS'] = cuis 
-    sample['Negation Flag'] = negations 
-    return sample
+    (cuis, negations)= add_note(symp_dict,o1,txt,neg_range)
+    sample['Symptom CUIs'] = f"$$${cuis}$$$"
+    sample['Negation Flag'] = f"$$${negations}$$$"
+    return sample[['ID','TEXT','Symptom CUIs','Negation Flag']]
 
 
 def build_symps():
@@ -87,7 +82,12 @@ def build_symps():
         (term_id,words) = (e['code'],e['desc'])
         gen = e['gen']
         symp_dict[words] = term_id
-        code_2_gen[term_id] = gen
+        code_2_gen[term_id] = gen 
+    additional:dict = load_annotations() 
+    for k in additional: 
+        if k not in symp_dict.keys():
+            symp_dict[k]= additional[k]
+            #print(f"Adding {k} with {additional[k]} which should be {code_2_gen[additional[k]]}")
     return (symp_dict,code_2_gen)
 def build_negations(): 
     rem_regex = r'(\.\s|\s)?(\w*\b)?(\.\s|\s)?(\w*\b)?(\.\s|\s)?(\w*\b)?' #this is the regex that matches the foward parts 
@@ -102,6 +102,8 @@ if __name__=="__main__":
     reddit = pd.read_excel(input_file)
     processed = list()
     for index,row in reddit.iterrows() : 
-        processed.append (annotate_individual(row,symps,negs,code_2_gen) )
+        if pd.isnull(row['TEXT']):
+            continue
+        processed.append( annotate_individual(row,symps,negs ) )
     final = pd.concat(processed,axis=1).T
-    final.to_excel('pokemon_test.xlsx')
+    final.to_excel('final.xlsx')
