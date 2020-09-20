@@ -5,9 +5,12 @@ import glob
 import sys 
 import re
 from generate_lexi import load_annotations
-
+from nltk.tokenize import word_tokenize
+#need to remove double spaces 
 def pre_process_text(s:str): 
-    return " ".join(s.lower().split('\n') )
+    s = word_tokenize(s.lower())
+    s = " ".join(s).replace(" .",".")
+    return  s
 def search_symptoms(symp_dict,sentence):
     found = False 
     matches = list() 
@@ -30,7 +33,7 @@ def search_negation(negations,sentence):
             matches.extend(searcher)
             found = True 
     return matches
-def gen_negation_range(neg_match): 
+def gen_negation_range(neg_match,symp_dict): 
     """ Each match will have a group sturcture (word)(punctuation|space)(word)(punctuation|space) 
     The words to be negated are whatever is to the left of the punctuation if there is any. 
     Therefore for each negation match see if there's a punctuation mark and prune it. 
@@ -39,12 +42,17 @@ def gen_negation_range(neg_match):
     """ 
     out = list()  
     for e in neg_match: 
-        groups = e.groups() 
-        try: 
-            idx = groups.index('.')
-            out.append(groups[0:idx])
-        except ValueError: 
-            out.append(groups)
+        groups:tuple = e.groups()  
+        if None in groups:
+            print(groups)
+            idx = groups.index(None)
+            groups = groups[0:idx]
+        dummy:str = "".join(groups)
+        dummy = re.sub('([\.\;\:\(\)].*)',"",dummy).strip()
+        if dummy in symp_dict:
+            continue
+        #basically i made it so that a regex removes any trailing punctuaiton 
+        out.append(dummy.split(" "))
     return out 
 
 def add_note(symp_dict,symp_matches,text,negation_ranges): 
@@ -67,7 +75,9 @@ def annotate_individual(sample:pd.Series,symp_dict,negations):
     txt = pre_process_text(sample['TEXT'])
     o1 = search_symptoms(symp_dict,txt)
     o2 =search_negation(negations,txt)
-    neg_range = gen_negation_range(o2)
+    if ID =="hsqxyq":
+        breakpoint()
+    neg_range = gen_negation_range(o2,symp_dict)
     (cuis, negations)= add_note(symp_dict,o1,txt,neg_range)
     sample['Symptom CUIs'] = f"$$${cuis}$$$"
     sample['Negation Flag'] = f"$$${negations}$$$"
@@ -90,7 +100,8 @@ def build_symps():
             #print(f"Adding {k} with {additional[k]} which should be {code_2_gen[additional[k]]}")
     return (symp_dict,code_2_gen)
 def build_negations(): 
-    rem_regex = r'(\.\s|\s)?(\w*\b)?(\.\s|\s)?(\w*\b)?(\.\s|\s)?(\w*\b)?' #this is the regex that matches the foward parts 
+    rem_regex = r'(\s?\W\s?)?(\w*\b)?(\s?\W\s?)?(\w*\b)?(\s?\W\s?)?(\w*\b)?' #this is the regex that matches the foward parts 
+    #rem_regex = r'(\.\s|\s\)?(\w*\b)?(\.\s|\s)?(\w*\b)?(\.\s|\s)?(\w*\b)?' #this is the regex that matches the foward parts 
     neg_text = [ r"(\b{}\b){}".format(e,rem_regex) for e in open('./neg_trigs.txt').read().split('\n') ]
     return neg_text
 def main(): 

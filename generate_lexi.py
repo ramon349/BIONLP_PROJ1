@@ -14,7 +14,6 @@ def load_annotations():
     master_dict = {} 
     for i,e in data.iterrows():
         merge_symp_cui(e['Symptom Expressions'].lower(),e['Symptom CUIs'].upper(),master_dict)
-
     return master_dict
 
 

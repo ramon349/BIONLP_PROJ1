@@ -53,6 +53,7 @@ for k,v in gold_standard_dict.items():
             fn+=1
     for c2 in submission_dict[k]:
         if not c2 in gold_standard_dict[k]:
+            print(f"You should have detected {c2} in {k} false positive ")
             fp+=1
 print('True Positives:',tp, 'False Positives: ', fp, 'False Negatives:', fn)
 recall = tp/(tp+fn)
@@ -60,3 +61,4 @@ precision = tp/(tp+fp)
 f1 = (2*recall*precision)/(recall+precision)
 print('Recall: ',recall,'\nPrecision:',precision,'\nF1-Score:',f1)
 
+#default of congetsion is C00831
