@@ -6,7 +6,7 @@ import sys
 import re
 from generate_lexi import load_annotations
 from nltk.tokenize import word_tokenize
-#need to remove double spaces 
+
 def pre_process_text(s:str): 
     s = word_tokenize(s.lower())
     s = " ".join(s).replace(" .",".")
@@ -44,7 +44,7 @@ def gen_negation_range(neg_match,symp_dict):
     for e in neg_match: 
         groups:tuple = e.groups()  
         if None in groups:
-            print(groups)
+            #print(groups)
             idx = groups.index(None)
             groups = groups[0:idx]
         dummy:str = "".join(groups)
@@ -75,13 +75,11 @@ def annotate_individual(sample:pd.Series,symp_dict,negations):
     txt = pre_process_text(sample['TEXT'])
     o1 = search_symptoms(symp_dict,txt)
     o2 =search_negation(negations,txt)
-    if ID =="hsqxyq":
-        breakpoint()
     neg_range = gen_negation_range(o2,symp_dict)
     (cuis, negations)= add_note(symp_dict,o1,txt,neg_range)
     sample['Symptom CUIs'] = f"$$${cuis}$$$"
     sample['Negation Flag'] = f"$$${negations}$$$"
-    return sample[['ID','TEXT','Symptom CUIs','Negation Flag']]
+    return sample[['ID','Symptom CUIs','Negation Flag']]
 
 
 def build_symps():
@@ -97,24 +95,23 @@ def build_symps():
     for k in additional: 
         if k not in symp_dict.keys():
             symp_dict[k]= additional[k]
-            #print(f"Adding {k} with {additional[k]} which should be {code_2_gen[additional[k]]}")
+    symp_dict['congestion']='C1260880'
     return (symp_dict,code_2_gen)
 def build_negations(): 
     rem_regex = r'(\s?\W\s?)?(\w*\b)?(\s?\W\s?)?(\w*\b)?(\s?\W\s?)?(\w*\b)?' #this is the regex that matches the foward parts 
-    #rem_regex = r'(\.\s|\s\)?(\w*\b)?(\.\s|\s)?(\w*\b)?(\.\s|\s)?(\w*\b)?' #this is the regex that matches the foward parts 
     neg_text = [ r"(\b{}\b){}".format(e,rem_regex) for e in open('./neg_trigs.txt').read().split('\n') ]
     return neg_text
 def main(): 
-    pass 
-if __name__=="__main__":
+    input_file = sys.argv[1]
     negs = build_negations()
     symps,code_2_gen = build_symps()
-    input_file = sys.argv[1]
     reddit = pd.read_excel(input_file)
     processed = list()
     for index,row in reddit.iterrows() : 
         if pd.isnull(row['TEXT']):
             continue
         processed.append( annotate_individual(row,symps,negs ) )
-    final = pd.concat(processed,axis=1).T
-    final.to_excel('final.xlsx')
+    final: pd.DataFrame = pd.concat(processed,axis=1).T
+    final.to_excel('correa_ramon_submission.xlsx',index=False)
+if __name__=="__main__":
+    main()
