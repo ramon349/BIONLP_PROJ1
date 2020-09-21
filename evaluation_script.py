@@ -35,7 +35,7 @@ def load_labels(f_path):
     return labeled_dict
 
 gold_standard_dict = load_labels('Assignment1GoldStandardSet.xlsx')
-submission_dict = load_labels('./final.xlsx')
+submission_dict = load_labels('./correa_ramon_submission.xlsx')
 
 tp = 0
 tn = 0
